@@ -161,7 +161,7 @@ abstract class SemisupervisedHmmTaggerTrainer[Tag](
     val trExpectedCountsUnindexed =
       (0 until numTags).map(k1 => allTags(k1) ->
         (0 until numTags).map(k2 => allTags(k2) ->
-          (if (k1 < 2 && k2 < 2) LogDouble.zero else LogDouble(trExpectedLogCounts(k1)(k2)))).toMap).toMap +
+          (if (k1 < 2 && k2 < 2) LogDouble.zero else new LogDouble(trExpectedLogCounts(k1)(k2)))).toMap).toMap +
         (tagdict.endTag -> Map[Tag, LogDouble]())
     val tagCountsUnindexed = trExpectedCountsUnindexed.mapVals(_.values.sum) + (tagdict.endTag -> trExpectedCountsUnindexed.values.map(_.getOrElse(tagdict.endTag, LogDouble.zero)).sum)
     val emLearnedTr = transitionDistributioner.make(trExpectedCountsUnindexed, tagCountsUnindexed, tagdict)
@@ -169,7 +169,7 @@ abstract class SemisupervisedHmmTaggerTrainer[Tag](
     val emExpectedCountsUnindexed =
       (2 until numTags).map(t => allTags(t) ->
         rtd(t).map(w => allWords(w) ->
-          LogDouble(emExpectedLogCounts(t)(w))).toMap).toMap +
+          new LogDouble(emExpectedLogCounts(t)(w))).toMap).toMap +
         (tagdict.startTag -> Map(tagdict.startWord -> LogDouble.one)) + (tagdict.endTag -> Map(tagdict.endWord -> LogDouble.one))
     val emLearnedEm = emissionDistributioner.make(emExpectedCountsUnindexed, tagdict)
 
@@ -556,7 +556,7 @@ class HardEmHmmTaggerTrainer[Tag](
   extends EmHmmTaggerTrainer[Tag](maxIterations, transitionDistributioner, emissionDistributioner, alphaT, alphaE, convergence) {
 
   /**
-   * @return: Transition and Emission expected counts
+   * @return: Transition and Emission expected log counts
    */
   final override def doTrain(
     sentsWithTokenTags: Vector[(Array[Int], Array[Array[Int]])],
@@ -566,7 +566,9 @@ class HardEmHmmTaggerTrainer[Tag](
     logInitialTr: Array[Array[Double]], logInitialEm: Array[Array[Double]]) = {
 
     val (expectedTrCounts, expectedEmCounts) = iterate(sentsWithTokenTags, numWords, numTags, rtd, alphaPriorTr, alphaPriorEm, logInitialTr, logInitialEm, 1, Double.NegativeInfinity)
-    (expectedTrCounts, expectedEmCounts)
+    val expectedTrLogCounts = expectedTrCounts.map(_.map(log))
+    val expectedEmLogCounts = expectedEmCounts.map(_.map(log))
+    (expectedTrLogCounts, expectedEmLogCounts)
   }
 
   /**

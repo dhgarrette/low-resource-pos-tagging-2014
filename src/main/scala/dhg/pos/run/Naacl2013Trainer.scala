@@ -28,6 +28,7 @@ class Naacl2013Trainer[Tag](
   labelPropIterations: Int = 200,
   emIterations: Int = 50,
   memmIterations: Int = 100,
+  memmCutoff: Int = 100,
   //
   tagToString: (Tag => String),
   tagFromString: (String => Tag),
@@ -54,7 +55,7 @@ class Naacl2013Trainer[Tag](
     val esmooth = new AddLambdaEmissionDistributioner[Tag](0.1)
 
     val emTrainer = new SoftEmHmmTaggerTrainer[Tag](emIterations, new UnsmoothedTransitionDistributioner, new UnsmoothedEmissionDistributioner, alphaT = 0.0, alphaE = 0.0, 1e-10)
-    val supervisedMemmTrainer = new MemmTaggerTrainer(memmIterations, cutoff = 100, tdRestricted = true, tagToString, tagFromString)
+    val supervisedMemmTrainer = new MemmTaggerTrainer(memmIterations, memmCutoff, tdRestricted = true, tagToString, tagFromString)
 
     println(f"Raw tokens: ${rawSentences.flatten.size}  (${rawSentences.size} sentences)")
     println(f"Token-supervision tokens: ${labeledSentences.flatten.size}  (${labeledSentences.size} sentences)")

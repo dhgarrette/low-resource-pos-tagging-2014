@@ -35,9 +35,10 @@ object Run {
       labelPropIterations = options.i("labelPropIterations", 200),
       emIterations = options.i("emIterations", 50),
       memmIterations = options.i("memmIterations", 100),
+      memmCutoff = options.i("memmCutoff", 100),
       tagToString = identity,
       tagFromString = identity,
-      baseline = "false")
+      baseline = options.s("baseline", "false"))
 
     assert(options.contains("rawFile") == (options.contains("toksupFile") || options.contains("typesupFile")), "If `rawFile` is given, `toksupFile` or `typesupFile` (or both) must be given.")
     assert(options.contains("rawFile") || options.contains("modelFile"), "`modelFile` required if training data is not given.")

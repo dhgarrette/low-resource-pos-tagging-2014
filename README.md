@@ -61,13 +61,14 @@ Data to run the tagger on.
 * `--outputFile`: Output location of the result of tagging the `inputFile`.
 * `--evalFile`: Location of an annotated file to evaluate on.
 
+* `--tdCutoff`: Tag dictionary cutoff.  Default: none.
 * `--numRawTokens`: Number of raw tokens (complete sentences up to this number of total tokens).  Default: infinite.
 * `--labelPropIterations`: Number of iterations for the label propagation procedure. Default `200`
 * `--emIterations`: Number of iterations for the HMM EM training procedure. Default `50`
 * `--memmIterations`: Number of iterations for the MEMM training procedure. Default `100`
-* `--tdCutoff`: Tag dictionary cutoff.  Default: none.
+* `--memmCutoff`: Cutoff for number of feature occurrences.  Default `100`
 
-For exmaple:
+For example:
 
     $ ./run --rawFile data/raw.txt --toksupFile data/toksup.txt --typesupFile data/typesup.txt --modelFile data/model.ser
     $ ./run --modelFile data/model.ser --inputFile data/input.txt --outputFile data/output.txt
