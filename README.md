@@ -72,7 +72,7 @@ Additional options.
 
 For example:
 
-    $ ./run --rawFile data/raw.txt --toksupFile data/toksup.txt --typesupFile data/typesup.txt --modelFile data/model.ser
+    $ ./run --rawFile data/raw.txt --toksupFile data/toksup.txt --typesupFile data/typesup.txt --modelFile data/model.ser --memmCutoff 10
     $ ./run --modelFile data/model.ser --inputFile data/input.txt --outputFile data/output.txt
     $ ./run --modelFile data/model.ser --evalFile data/eval.txt
 
