@@ -61,6 +61,8 @@ Data to run the tagger on.
 * `--outputFile`: Output location of the result of tagging the `inputFile`.
 * `--evalFile`: Location of an annotated file to evaluate on.
 
+Additional options.
+
 * `--tdCutoff`: Tag dictionary cutoff.  Default: none.
 * `--numRawTokens`: Number of raw tokens (complete sentences up to this number of total tokens).  Default: infinite.
 * `--labelPropIterations`: Number of iterations for the label propagation procedure. Default `200`
@@ -81,3 +83,15 @@ Note: You should set the `JAVA_OPTS` environment variable to increase the availa
     export JAVA_OPTS="-Xmx4g"
 
 
+
+### Data Format
+
+Unannotated files (`rawFile`, `inputFile`) should be whitespace-separated tokens, one sentence per line:
+
+    the man chases a cat .
+    the dog chases a man .
+
+Annotated files (`toksupFile`, `typesupFile`, `evalFile`) should be whitespace-separated tokens, one sentence per line, where each token is `word|tag`:
+
+    the|D man|N sees|V the|D dog|N .|.
+    the|D dog|N runs|V .|.
