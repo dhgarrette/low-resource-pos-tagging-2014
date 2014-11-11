@@ -1,0 +1,2 @@
+the|D dog|N chases|V a|D cat|N .|.
+the|D cat|N runs|V .|.

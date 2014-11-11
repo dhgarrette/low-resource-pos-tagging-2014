@@ -1,0 +1,2 @@
+the|D man|N sees|V the|D dog|N .|.
+the|D dog|N runs|V .|.

@@ -1,0 +1,3 @@
+the|D a|D
+tall|A bird|N walks|V
+walks|N man|N .|.
