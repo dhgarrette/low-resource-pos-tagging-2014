@@ -14,7 +14,8 @@ resolvers ++= Seq(
 
 libraryDependencies ++= Seq(
   "org.apache.opennlp" % "opennlp-tools" % "1.5.2-incubating",
-  "org.scalaz" %% "scalaz-core" % "7.0.6", // "7.1.0"
+  "org.scalaz" %% "scalaz-core" % "7.0.6",
+  "org.slf4j" % "slf4j-simple" % "1.7.7",
   "junit" % "junit" % "4.11",
   "com.novocode" % "junit-interface" % "0.10" % "test") //switch to ScalaTest at some point...
 
