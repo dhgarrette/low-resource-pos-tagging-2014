@@ -43,7 +43,7 @@ The rest of these instructions assume starting from the `low-resource-pos-taggin
 
 ## Running the system
 
-    $ target/start OPTIONS
+    $ ./run OPTIONS
 
 Training data.  If `rawFile` is given, `toksupFile` or `typesupFile` (or both) must be given.
 
