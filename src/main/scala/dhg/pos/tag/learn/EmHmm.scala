@@ -63,8 +63,10 @@ abstract class SemisupervisedHmmTaggerTrainer[Tag](
     //
     //
 
-    val allWords = tagdict.startWord +: tagdict.endWord +: rawSentences.flatten.toSet.toVector
-    val allTags = tagdict.startTag +: tagdict.endTag +: tagdict.allTags.toVector
+    val allActualWords = rawSentences.flatten.toSet.toVector
+    val allWords = tagdict.startWord +: tagdict.endWord +: allActualWords
+    val allTdTags = allActualWords.flatMap(tagdict).distinct // filter out tags that are not used by any word
+    val allTags = tagdict.startTag +: tagdict.endTag +: allTdTags
 
     val numWords = allWords.size
     val numTags = allTags.size
@@ -73,15 +75,6 @@ abstract class SemisupervisedHmmTaggerTrainer[Tag](
     println("numWords = " + numWords)
     println("numTags  = " + numTags)
     println
-
-    //Console.err.println(f"allTags(44) = ${allTags(44)}") // TODO: REMOVE
-    //Console.err.println(f"allTags(18) = ${allTags(18)}") // TODO: REMOVE
-    //Console.err.println(f"transitions(${allTags(18)}, ${allTags(44)}) = ${transitions(allTags(18), allTags(44))}") // TODO: REMOVE
-
-    //Console.err.println(f"allWords(6730) = ${allWords(6730)}") // TODO: REMOVE
-    //Console.err.println(f"emissions(${allWords(27)}, ${allTags(18)}) = ${emissions(allWords(27), allTags(18))}") // TODO: REMOVE
-
-    //Console.err.println(f"tagdict(${allWords(6730)}) = ${tagdict(allWords(6730))}") // TODO: REMOVE
 
     val wordIndex = allWords.zipWithIndex.toMap
     val tagIndex = allTags.zipWithIndex.toMap
@@ -103,19 +96,6 @@ abstract class SemisupervisedHmmTaggerTrainer[Tag](
       }(breakOut): Array[Array[Int]]
     }
 
-    //Console.err.println(f"td(1209) = ${td(1209).toVector}") // TODO: REMOVE
-    //Console.err.println(f"td(1209).contains(12) = ${td(1209).contains(12)}") // TODO: REMOVE
-    //Console.err.println(f"rtd(12).contains(1209) = ${rtd(12).contains(1209)}") // TODO: REMOVE
-
-    // DEBUG
-    //rawSentences.foreach(s => println(s.mkString(" "))); println
-
-    // DEBUG
-    //println("TAG DICT"); for (w <- allWords.sortBy(_.toString)) println(f"  $w%-6s -> [${td(wordIndex(w)).map(allTags).sortBy(_.toString).mkString(", ")}]"); println
-    //println("REVERSE TAG DICT"); for (t <- allTags.sortBy(_.toString)) println(f"  $t -> [${rtd(tagIndex(t)).map(allWords).sortBy(_.toString).mkString(", ")}]"); println
-
-    //Console.err.println(f"tagdict(350)(137) = ${tagdict(allWords(350))(allTags(137))}") // TODO: REMOVE
-
     println("Make Indexed Distributions")
     val logInitialTr: Array[Array[Double]] = Array.tabulate(numTags) { t1 => Array.tabulate(numTags) { t2 => transitions(allTags(t2), allTags(t1)).logValue } }
     val logInitialEm: Array[Array[Double]] = Array.tabulate(numTags) { t => Array.tabulate(numWords) { w => emissions(allWords(w), allTags(t)).logValue } }
@@ -133,16 +113,6 @@ abstract class SemisupervisedHmmTaggerTrainer[Tag](
       ti <- tagIndex.get(t)
       wi <- wordIndex.get(w)
     } { emGoldCounts(ti)(wi) += 1 }
-
-    //Console.err.println(f"emissions(${allWords(1209)},${allTags(12)}) = ${emissions(allWords(1209), allTags(12))}") // TODO: REMOVE
-    //Console.err.println(f"em(12)(1209) = ${em(12)(1209)}") // TODO: REMOVE
-
-    //for(x <- 0 until numTags ) { Console.err.println(f"$x: em(${allTags(x)})(1209) = ${em(x)(1209)}") } // TODO: REMOVE
-    //Console.err.println(f"$x: em(${allTags(x)})(1209) = ${em(x)(1209)}") // TODO: REMOVE
-
-    // DEBUG
-    //println("\nTRANSITIONS"); println("\t" + (0 until numTags).map(allTags).mkString("\t")); for (t1 <- 0 until numTags) println(allTags(t1) + "\t" + (0 until numTags).map(t2 => if (t1 != 1 && t2 != 0 && !(t1 == 0 && t2 <= 1)) f"${tr(t1)(t2)}%.2f" else "").mkString("\t"))
-    //println("\nEMISSIONS"); println("\t" + (0 until numWords).map(allWords).mkString("\t")); for (t <- 0 until numTags) println(allTags(t) + "\t" + (0 until numWords).map(w => if (td(w).contains(t)) f"${em(t)(w)}%.2f" else "").mkString("\t")); println
 
     val sentsWithTokenTags: Vector[(Array[Int], Array[Array[Int]])] = rawSentencesWithTokenTags.map { sentWithTokenTags =>
       val (s, tokenTags) = sentWithTokenTags.unzip
@@ -306,8 +276,6 @@ class SoftEmHmmTaggerTrainer[Tag](
     val startTime = System.currentTimeMillis()
     val (expectedTrLogCounts, expectedEmLogCounts, avgLogProb) = reestimate(sentsWithTokenTags, numWords, numTags, rtd, alphaPriorLogTr, alphaPriorLogEm, logTr, logEm)
     println(f"iteration ${(iteration + ":").padRight(4)} ${(System.currentTimeMillis() - startTime) / 1000.0}%.3f sec   avgLogProb=${(avgLogProb + ",").padRight(22)} avgProb=${exp(avgLogProb)}")
-    //println("\nTRANSITIONS"); for (t1 <- 0 until numTags) println((0 until numTags).map(t2 => if (t1 != 1 && !(t1 == 0 && t2 <= 1)) f"${exp(newLogTr(t1)(t2))}%.4f" else "").mkString("\t"))
-    //println("\nEMISSIONS"); for (t <- 0 until numTags) println((0 until numWords).map(w => if (tokenTags(i).contains(t)) f"${exp(newLogEm(t)(w))}%.4f" else "").mkString("\t")); println
     if (iteration >= maxIterations) {
       println(f"MAX ITERATIONS REACHED")
       (expectedTrLogCounts, expectedEmLogCounts)
@@ -352,9 +320,6 @@ class SoftEmHmmTaggerTrainer[Tag](
       logProbSum += contributeExpectations(expectedTrLogCounts, expectedEmLogCounts, s, stags, numWords, numTags, rtd, logTr, logEm)
     }
 
-    //println("\nTRANSITION COUNTS"); for (t1 <- 0 until numTags) println((0 until numTags).map(t2 => if (t1 != 1 && !(t1 == 0 && t2 <= 1)) f"${expectedTrLogCounts(t1)(t2)}%.4f" else "").mkString("\t"))
-    //println("\nEMISSION COUNTS"); for (t <- 0 until numTags) println((0 until numWords).map(w => if (td(w).contains(t)) f"${expectedEmLogCounts(t)(w)}%.4f" else "").mkString("\t")); println
-
     (expectedTrLogCounts, expectedEmLogCounts, logProbSum / sentsWithTokenTags.size)
   }
 
@@ -370,8 +335,6 @@ class SoftEmHmmTaggerTrainer[Tag](
     logTr: Array[Array[Double]], logEm: Array[Array[Double]]): Double = {
 
     assert(w.head == 0 && w.last == 1)
-
-    //Console.err.println(f"b: logEm(137)(350) = ${logEm(137)(350)}") // TODO: REMOVE
 
     val logFwd = calculateForward(w, tokenTags, numWords, numTags, logTr, logEm)
     val logBkd = calculateBackwrd(w, tokenTags, numWords, numTags, logTr, logEm)
@@ -390,7 +353,6 @@ class SoftEmHmmTaggerTrainer[Tag](
     w: Array[Int], tokenTags: Array[Array[Int]],
     numWords: Int, numTags: Int,
     logTr: Array[Array[Double]], logEm: Array[Array[Double]]) = {
-    //println("FORWARD")
     val logFwd = makeMatrix(w.length, numTags)
 
     // For temporary storage
@@ -401,7 +363,6 @@ class SoftEmHmmTaggerTrainer[Tag](
     while (i < w.length) {
       val curLogFwd = logFwd(i)
       val prevLogFwd = logFwd(i - 1)
-      //Console.err.println(f"prevLogFwd = ${prevLogFwd.toVector}") // TODO: REMOVE
 
       val curW = w(i)
       val curWKs = tokenTags(i)
@@ -416,18 +377,13 @@ class SoftEmHmmTaggerTrainer[Tag](
         var l = 0
         while (l < prevKsLen) {
           val k1 = prevKs(l)
-          //assert(!logTr(k1)(k).isNegInfinity, f"logTr($k1)($k) is infinite") // TODO: REMOVE
-          //assert(!prevLogFwd(k1).isNegInfinity, f"prevLogFwd($k1) is infinite") // TODO: REMOVE
           val v = logTr(k1)(k) + prevLogFwd(k1)
           logValueArray(l) = v
           l += 1
         }
-        //assert(!logEm(k)(curW).isNegInfinity, f"logEm($k)($curW) is infinite") // TODO: REMOVE
         curLogFwd(k) = logSum(logValueArray, prevKsLen) + logEm(k)(curW)
-        //assert(!curLogFwd(k).isNegInfinity, f"curLogFwd($k) is infinite; logSum(${logValueArray.toVector}, $prevKsLen) + ${logEm(k)(curW)}") // TODO: REMOVE
         j += 1
       }
-      //println(f"$i%3d: " + curLogFwd.zipWithIndex.map { case (v, k) => if (td(w(i)).contains(k)) exp(v).toString else "" }.map(_.padRight(30)).mkString(" "))
       i += 1
     }
     logFwd
@@ -437,7 +393,6 @@ class SoftEmHmmTaggerTrainer[Tag](
     w: Array[Int], tokenTags: Array[Array[Int]],
     numWords: Int, numTags: Int,
     logTr: Array[Array[Double]], logEm: Array[Array[Double]]) = {
-    //println("BACKWARD")
     val logBkd = makeMatrix(w.length, numTags)
 
     // For temporary storage
@@ -463,8 +418,6 @@ class SoftEmHmmTaggerTrainer[Tag](
         while (l < nextKsLen) {
           val k2 = nextKs(l)
           assert(!logTr(k)(k2).isNegInfinity, f"logTr($k)($k2) is infinite") // TODO: REMOVE
-          //Console.err.println(f"c: logEm(137)(350) = ${logEm(137)(350)}") // TODO: REMOVE
-          //Console.err.println(f"d: logEm($k)($nextW) = ${logEm(k)(nextW)}") // TODO: REMOVE
           assert(!logEm(k2)(nextW).isNegInfinity, f"logEm($k2)($nextW) is infinite") // TODO: REMOVE
           logValueArray(l) = logTr(k)(k2) + logEm(k2)(nextW) + nextLogBkd(k2)
           l += 1
@@ -472,7 +425,6 @@ class SoftEmHmmTaggerTrainer[Tag](
         curLogBkd(k) = logSum(logValueArray, nextKsLen)
         j += 1
       }
-      //println(f"$i%3d: " + curLogBkd.zipWithIndex.map { case (v, k) => if (td(w(i)).contains(k)) exp(v).toString else "" }.map(_.padRight(30)).mkString(" "))
       i -= 1
     }
     logBkd
@@ -510,7 +462,6 @@ class SoftEmHmmTaggerTrainer[Tag](
       }
       i += 1
     }
-    //    println((0 until numTags).flatMap(k1 => (0 until numTags).map(k2 => f"exTr($k1)($k2)=${exTr(k1)(k2)}")).mkString(" "))
   }
 
   private[this] final def contributeExpectedEmCounts(
@@ -532,10 +483,8 @@ class SoftEmHmmTaggerTrainer[Tag](
       while (j < curWKsLen) {
         val k = curWKs(j)
         val logEx = logFwd(i)(k) + logBkd(i)(k)
-        //Console.err.println(f"BEFORE: expectedEmCounts($k)($curW) = ${expectedEmCounts(k)(curW)}") // TODO: REMOVE
         val exLogEmK = expectedEmLogCounts(k)
         exLogEmK(curW) = logSum(exLogEmK(curW), logEx - logFwdP)
-        //Console.err.println(f"AFTER: expectedEmCounts($k)($curW) = ${expectedEmCounts(k)(curW)}") // TODO: REMOVE
         assert(!expectedEmLogCounts(k)(curW).isNegInfinity, f"expectedEmLogCounts($k)($curW) is infinite; logEx=$logFwdP-logEx=$logFwdP = ${logEx - logFwdP}; curWKs=${curWKs.mkString("[", ",", "]")}") // TODO: REMOVE
         j += 1
       }
@@ -586,8 +535,6 @@ class HardEmHmmTaggerTrainer[Tag](
     val startTime = System.currentTimeMillis()
     val (expectedTrCounts, expectedEmCounts, avgLogProb) = reestimate(sentsWithTokenTags, numWords, numTags, alphaPriorTr, alphaPriorEm, logTr, logEm)
     println(f"iteration ${(iteration + ":").padRight(4)} ${(System.currentTimeMillis() - startTime) / 1000.0}%.3f sec   avgLogProb=${(avgLogProb + ",").padRight(22)} avgProb=${exp(avgLogProb)}")
-    //println("\nTRANSITIONS"); for (t1 <- 0 until numTags) println((0 until numTags).map(t2 => if (t1 != 1 && !(t1 == 0 && t2 <= 1)) f"${exp(newLogTr(t1)(t2))}%.4f" else "").mkString("\t"))
-    //println("\nEMISSIONS"); for (t <- 0 until numTags) println((0 until numWords).map(w => if (td(w).contains(t)) f"${exp(newLogEm(t)(w))}%.4f" else "").mkString("\t")); println
     if (iteration >= maxIterations) {
       println(f"MAX ITERATIONS REACHED")
       (expectedTrCounts, expectedEmCounts)
@@ -631,9 +578,6 @@ class HardEmHmmTaggerTrainer[Tag](
       logProbSum += contributeExpectations(expectedTrCounts, expectedEmCounts, s, stags, numWords, numTags, logTr, logEm)
     }
 
-    //println("\nTRANSITION COUNTS"); for (t1 <- 0 until numTags) println((0 until numTags).map(t2 => if (t1 != 1 && !(t1 == 0 && t2 <= 1)) f"${expectedTrLogCounts(t1)(t2)}%.4f" else "").mkString("\t"))
-    //println("\nEMISSION COUNTS"); for (t <- 0 until numTags) println((0 until numWords).map(w => if (td(w).contains(t)) f"${expectedEmLogCounts(t)(w)}%.4f" else "").mkString("\t")); println
-
     (expectedTrCounts, expectedEmCounts, logProbSum / sentsWithTokenTags.size)
   }
 
@@ -655,7 +599,6 @@ class HardEmHmmTaggerTrainer[Tag](
     w: Array[Int], tokenTags: Array[Array[Int]],
     numWords: Int, numTags: Int,
     logTr: Array[Array[Double]], logEm: Array[Array[Double]]) = {
-    //println("FORWARD")
     val wLen = w.length
     val logViterbiTable = makeMatrix(w.length, numTags)
     val backpointers = new Array[Array[Int]](wLen); { var i = 0; while (i < wLen) { backpointers(i) = new Array[Int](numTags); i += 1 } }
@@ -665,7 +608,6 @@ class HardEmHmmTaggerTrainer[Tag](
     while (i < w.length) {
       val curViterbi = logViterbiTable(i)
       val prevViterbi = logViterbiTable(i - 1)
-      //Console.err.println(f"prevViterbi = ${prevViterbi.toVector}") // TODO: REMOVE
 
       val curW = w(i)
       val curWKs = tokenTags(i)
@@ -684,8 +626,6 @@ class HardEmHmmTaggerTrainer[Tag](
         var l = 0
         while (l < prevKsLen) {
           val k1 = prevKs(l)
-          //assert(!logTr(k1)(k).isNegInfinity, f"logTr($k1)($k) is infinite") // TODO: REMOVE
-          //assert(!prevViterbi(k1).isNegInfinity, f"prevViterbi($k1) is infinite") // TODO: REMOVE
           val score = logTr(k1)(k) + prevViterbi(k1)
           if (score > maxScore) {
             bestK1 = k1
@@ -693,16 +633,12 @@ class HardEmHmmTaggerTrainer[Tag](
           }
           l += 1
         }
-        //assert(!logEm(k)(curW).isNegInfinity, f"logEm($k)($curW) is infinite") // TODO: REMOVE
         curViterbi(k) = maxScore + logEm(k)(curW)
         curBack(k) = bestK1
         j += 1
       }
-      //println(f"$i%3d: " + curViterbi.zipWithIndex.map { case (v, k) => if (td(w(i)).contains(k)) exp(v).toString else "" }.map(_.padRight(30)).mkString(" "))
       i += 1
     }
-
-    //drawViterbiTable(w, td, logViterbiTable, backpointers)
 
     (logViterbiTable.last(1), backpointers)
   }
@@ -714,7 +650,6 @@ class HardEmHmmTaggerTrainer[Tag](
     logTr: Array[Array[Double]], logEm: Array[Array[Double]],
     expectedTrCounts: Array[Array[Double]],
     expectedEmCounts: Array[Array[Double]]): Unit = {
-    //println("BACKWARD")
 
     var i = w.length - 2
     var nextTag = 1
@@ -726,20 +661,6 @@ class HardEmHmmTaggerTrainer[Tag](
       i -= 1
     }
     expectedTrCounts(0)(nextTag) += 1
-  }
-
-  private[this] def drawViterbiTable(
-    w: Array[Int], tokenTags: Array[Array[Int]],
-    logViterbiTable: Array[Array[Double]],
-    backpointers: Array[Array[Int]]): Unit = {
-    for ((currV, k) <- logViterbiTable.transpose.zipWithIndex) {
-      println(currV.zipWithIndex.map {
-        case (v, i) =>
-          (if (tokenTags(i).contains(w(i))) f"${backpointers(i)(k)} <- ${exp(v)}%.5f"
-          else "").padLeft(5 + 8)
-      }.mkString(" "))
-    }
-    println
   }
 
   override final def toString = f"HardEmHmmTaggerTrainer($maxIterations, $transitionDistributioner, $emissionDistributioner, alphaT=${alphaT}%2f, alphaE=${alphaE}%2f)"
