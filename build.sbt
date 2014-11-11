@@ -13,7 +13,8 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  "org.apache.opennlp" % "opennlp-tools" % "1.5.2-incubating",
+  "org.apache.opennlp" % "opennlp-tools" % "1.5.3" exclude("org.apache.opennlp", "opennlp-maxent"),
+  //"org.scalanlp" % "junto" % "1.6.0",
   "org.scalaz" %% "scalaz-core" % "7.0.6",
   "org.slf4j" % "slf4j-simple" % "1.7.7",
   "junit" % "junit" % "4.11",
@@ -27,8 +28,6 @@ libraryDependencies ++= Seq(
   "org.rogach" %% "scallop" % "0.9.5",
   "net.sf.trove4j" % "trove4j" % "3.0.3",
   "com.typesafe.scala-logging" %% "scala-logging" % "3.1.0")
-
-
 
 seq(SbtStartScript.startScriptForClassesSettings: _*)
 

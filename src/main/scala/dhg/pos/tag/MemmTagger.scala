@@ -18,6 +18,7 @@ import opennlp.tools.postag.OpenNlpPosDictionary._
 import dhg.util.math.LogDouble
 import dhg.pos.tagdict.TagDictionary
 import dhg.pos.tagdict.SimpleTagDictionary
+import opennlp.model.NoEventsException
 
 /**
  * Train a MEMM from gold-labeled data.
@@ -35,7 +36,11 @@ class MemmTaggerTrainer[Tag](
   override def train(taggedSentences: Vector[Vector[(Word, Tag)]], initialTagdict: TagDictionary[Tag]) = {
     val (taggedSentencesWords, taggedSentencesTags) = taggedSentences.flatten.toSet.unzip
     val tagdict = initialTagdict.withWords(taggedSentencesWords).withTags(taggedSentencesTags)
+    val model: POSModel = trainWithCutoff(taggedSentences, cutoff, taggedSentencesWords, taggedSentencesTags, tagdict)
+    new MemmTagger[Tag](model, new POSTaggerME(model), tagToString, tagFromString)
+  }
 
+  def trainWithCutoff(taggedSentences: Vector[Vector[(Word, Tag)]], usedCutoff: Int, taggedSentencesWords: Set[Word], taggedSentencesTags: Set[Tag], tagdict: TagDictionary[Tag]): POSModel = {
     val samples = ObjectStreamUtils.createObjectStream(
       taggedSentences.map { s =>
         val (words, tags) = s.unzip
@@ -44,29 +49,39 @@ class MemmTaggerTrainer[Tag](
 
     val languageCode = "Uh... any language ???"
 
-    val params = new TrainingParameters()
-    params.put(TrainingParameters.ALGORITHM_PARAM, ModelType.MAXENT.toString)
-    params.put(TrainingParameters.ITERATIONS_PARAM, maxIterations.toString)
-    params.put(TrainingParameters.CUTOFF_PARAM, cutoff.toString)
+    try {
+      val params = new TrainingParameters()
+      params.put(TrainingParameters.ALGORITHM_PARAM, ModelType.MAXENT.toString)
+      params.put(TrainingParameters.ITERATIONS_PARAM, maxIterations.toString)
+      params.put(TrainingParameters.CUTOFF_PARAM, usedCutoff.toString)
 
-    val tagDictionary =
-      if (tdRestricted) {
-        taggedSentencesWords.foldLeft(new POSDictionary) { (td, w) =>
-          td.updated(w, (tagdict(w) & taggedSentencesTags).map(tagToString))
+      val tagDictionary =
+        if (tdRestricted) {
+          taggedSentencesWords.foldLeft(new POSDictionary) { (td, w) =>
+            td.updated(w, (tagdict(w) & taggedSentencesTags).map(tagToString))
+          }
         }
-      }
-      else null
+        else null
 
-    val ngramDictionary: Dictionary = null
+      val ngramDictionary: Dictionary = null
 
-    val model = POSTaggerME.train(
-      languageCode,
-      samples,
-      params,
-      tagDictionary,
-      ngramDictionary)
-    new MemmTagger[Tag](model, new POSTaggerME(model), tagToString, tagFromString)
+      POSTaggerME.train(
+        languageCode,
+        samples,
+        params,
+        tagDictionary,
+        ngramDictionary)
+    }
+    catch {
+      case e: NoEventsException =>
+        Console.err.println(e.getMessage)
+        if (usedCutoff > 0)
+          trainWithCutoff(taggedSentences, usedCutoff - 1, taggedSentencesWords, taggedSentencesTags, tagdict)
+        else
+          throw e
+    }
   }
+
 }
 
 object MemmTaggerTrainer {
