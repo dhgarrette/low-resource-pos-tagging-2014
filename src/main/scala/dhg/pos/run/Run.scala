@@ -31,26 +31,63 @@ object Run {
     val (arguments, options_) = CommandLineUtil.parseArgs(args)
     val options = new CommandLineUtil.CommandLineOptions(options_)
 
-    val trainer = new Naacl2013Trainer[String](
+    val autotagger = new Naacl2013Autotagger[String](
       labelPropIterations = options.i("labelPropIterations", 200),
       emIterations = options.i("emIterations", 50),
-      memmIterations = options.i("memmIterations", 100),
-      memmCutoff = options.i("memmCutoff", 100),
       tagToString = identity,
       tagFromString = identity,
       baseline = options.s("baseline", "false"))
 
-    assert(options.contains("rawFile") == (options.contains("toksupFile") || options.contains("typesupFile")), "If `rawFile` is given, `toksupFile` or `typesupFile` (or both) must be given.")
-    assert(options.contains("rawFile") || options.contains("modelFile"), "`modelFile` required if training data is not given.")
+    val autotaggedTrainer = new Naacl2013SupervisedTrainer[String](
+      memmIterations = options.i("memmIterations", 100),
+      memmCutoff = options.i("memmCutoff", 100),
+      tagToString = identity,
+      tagFromString = identity)
 
-    val tagger: Tagger[String] =
-      if (options.contains("rawFile")) {
-        val rawSentences = new FileRawDataReader().readRaw(options("rawFile")).takeSub(options.i("numRawTokens", Int.MaxValue)).toVector
-        val tokenSupSentences = options.get("toksupFile").map(f => new FileTaggedDataReader().readTagged(f).toVector).getOrElse(Vector.empty)
-        val typeSupData = options.get("typesupFile").map(f => new FileTaggedDataReader().readTagged(f).toVector).getOrElse(Vector.empty)
-        val initialTagdict = new SimpleTagDictionaryFactory(options.get("tdCutoff").map(_.toDouble))
-          .apply(typeSupData.toVector, "<S>", "<S>", "<E>", "<E>")
-        val model = trainer.train(rawSentences, tokenSupSentences, initialTagdict)
+    val trainer = new Naacl2013Trainer[String](
+      autotagger,
+      autotaggedTrainer)
+
+    val isTrain = options.contains("rawFile") || options.contains("autotaggedFile")
+    assert(options.contains("rawFile") == (options.contains("toksupFile") || options.contains("typesupFile")), "If `rawFile` is given, `toksupFile` or `typesupFile` (or both) must be given.")
+    assert((options.contains("rawFile") && options.contains("autotaggedFile")) || options.contains("modelFile") || options.contains("inputFile") || options.contains("evalFile"), "Need to either train (`modelFile`) or tag (`inputFile` or `evalFile`)")
+
+    val tagger: Tagger[String] = {
+      if (isTrain) {
+        println("Training mode")
+
+        val (autotaggedCorpus, generalizedTagdict) =
+          if (options.contains("rawFile")) {
+            val rawSentences = new FileRawDataReader().readRaw(options("rawFile")).takeSub(options.i("numRawTokens", Int.MaxValue)).toVector
+            val tokenSupSentences = options.get("toksupFile").map(f => new FileTaggedDataReader().readTagged(f).toVector).getOrElse(Vector.empty)
+            val typeSupData = options.get("typesupFile").map(f => new FileTaggedDataReader().readTagged(f).toVector).getOrElse(Vector.empty)
+            val initialTagdict = new SimpleTagDictionaryFactory(options.get("tdCutoff").map(_.toDouble))
+              .apply(typeSupData.toVector, "<S>", "<S>", "<E>", "<E>")
+            val (autotaggedCorpus, generalizedTagdict) = autotagger.induceRawCorpusTagging(rawSentences, tokenSupSentences, initialTagdict)
+
+            if (options.contains("autotaggedFile")) {
+              println("Writing auto-tagged data to " + options("autotaggedFile"))
+              writeUsing(File(options("autotaggedFile"))) { f =>
+                for (sentence <- autotaggedCorpus) {
+                  f.writeLine(sentence.map { case (w, t) => f"$w|$t" }.mkString(" "))
+                }
+              }
+            }
+
+            (autotaggedCorpus, generalizedTagdict)
+          }
+          else if (options.contains("autotaggedFile")) {
+            println("Reading auto-tagged data from " + options("autotaggedFile"))
+            val autotaggedCorpus = new FileTaggedDataReader().readTagged(options("autotaggedFile")).toVector
+            val generalizedTagdict = new SimpleTagDictionaryFactory(options.get("tdCutoff").map(_.toDouble))
+              .apply(autotaggedCorpus.toVector, "<S>", "<S>", "<E>", "<E>")
+            (autotaggedCorpus, generalizedTagdict)
+          }
+          else {
+            ??? // can't happen
+          }
+
+        val model = autotaggedTrainer.trainFromAutoTagged(autotaggedCorpus, generalizedTagdict)
         options.get("modelFile").foreach { modelFile =>
           println(f"Writing tagger model to ${options("modelFile")}")
           MemmTagger.persistToFile(model, modelFile)
@@ -58,9 +95,11 @@ object Run {
         model
       }
       else {
+        assert(options.contains("modelFile"), "`modelFile` required if training data (`rawFile` or `autotaggedFile`) is not given.")
         println(f"Loading tagger model from ${options("modelFile")}")
         MemmTagger.fromFile(options("modelFile"))
       }
+    }
 
     assert(options.contains("inputFile") == options.contains("outputFile"), "If `inputFile` is given, `outputFile` must be too.")
     for (inputFile <- options.get("inputFile")) {
@@ -70,8 +109,8 @@ object Run {
         }
       }
     }
-    
-    for(evalFile <- options.get("evalFile")){
+
+    for (evalFile <- options.get("evalFile")) {
       TaggerEvaluator.apply(tagger, new FileTaggedDataReader().readTagged(evalFile).toVector)
     }
 

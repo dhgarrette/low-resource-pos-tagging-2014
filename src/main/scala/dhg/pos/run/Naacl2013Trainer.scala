@@ -25,15 +25,8 @@ import dhg.pos.tagdict.TagDictionary
 import dhg.pos.tagdict.SimpleTagDictionary
 
 class Naacl2013Trainer[Tag](
-  labelPropIterations: Int = 200,
-  emIterations: Int = 50,
-  memmIterations: Int = 100,
-  memmCutoff: Int = 100,
-  //
-  tagToString: (Tag => String),
-  tagFromString: (String => Tag),
-  //
-  baseline: String = "false") {
+  autotagger: Naacl2013Autotagger[Tag],
+  supTrainer: Naacl2013SupervisedTrainer[Tag]) {
   type Word = String
 
   /**
@@ -45,6 +38,57 @@ class Naacl2013Trainer[Tag](
     initialTagdict: TagDictionary[Tag]): MemmTagger[Tag] = {
     val startTime = System.currentTimeMillis()
 
+    val (autotaggedRawCorpus, generalizedTagdict) = autotagger.induceRawCorpusTagging(rawSentences, labeledSentences, initialTagdict)
+
+    println("learn an MEMM from auto-tagged data produced by the smoothed HMM")
+    val memm = supTrainer.trainFromAutoTagged(autotaggedRawCorpus ++ labeledSentences, generalizedTagdict)
+
+    println(f"Total NAACL Trainer training time: ${(System.currentTimeMillis() - startTime) / 1000} seconds\n\n")
+    memm
+  }
+
+}
+
+class Naacl2013SupervisedTrainer[Tag](
+  memmIterations: Int = 100,
+  memmCutoff: Int = 100,
+  //
+  tagToString: (Tag => String),
+  tagFromString: (String => Tag)) {
+  type Word = String
+
+  /**
+   * LP -> ModelMin -> EM -> MEMM
+   */
+  def trainFromAutoTagged(
+    taggedCorpus: Vector[Vector[(Word, Tag)]],
+    generalizedTagdict: TagDictionary[Tag]): MemmTagger[Tag] = {
+    val startTime = System.currentTimeMillis()
+
+    val supervisedMemmTrainer = new MemmTaggerTrainer(memmIterations, memmCutoff, tdRestricted = true, tagToString, tagFromString)
+    supervisedMemmTrainer.train(taggedCorpus, generalizedTagdict)
+  }
+
+}
+
+class Naacl2013Autotagger[Tag](
+  labelPropIterations: Int = 200,
+  emIterations: Int = 50,
+  //
+  tagToString: (Tag => String),
+  tagFromString: (String => Tag),
+  //
+  baseline: String = "false") {
+  type Word = String
+
+  /**
+   * LP -> ModelMin -> EM -> Tagged raw corpus
+   */
+  def induceRawCorpusTagging(
+    rawSentences: Vector[Vector[Word]],
+    labeledSentences: Vector[Vector[(Word, Tag)]],
+    initialTagdict: TagDictionary[Tag]): (Vector[Vector[(Word, Tag)]], TagDictionary[Tag]) = {
+
     val annotationTagdict = SimpleTagDictionary(
       initialTagdict.entries |+| labeledSentences.flatten.groupByKey.mapVals(_.toSet),
       initialTagdict.startWord, initialTagdict.startTag, initialTagdict.endWord, initialTagdict.endTag,
@@ -55,7 +99,6 @@ class Naacl2013Trainer[Tag](
     val esmooth = new AddLambdaEmissionDistributioner[Tag](0.1)
 
     val emTrainer = new SoftEmHmmTaggerTrainer[Tag](emIterations, new UnsmoothedTransitionDistributioner, new UnsmoothedEmissionDistributioner, alphaT = 0.0, alphaE = 0.0, 1e-10)
-    val supervisedMemmTrainer = new MemmTaggerTrainer(memmIterations, memmCutoff, tdRestricted = true, tagToString, tagFromString)
 
     println(f"Raw tokens: ${rawSentences.flatten.size}  (${rawSentences.size} sentences)")
     println(f"Token-supervision tokens: ${labeledSentences.flatten.size}  (${labeledSentences.size} sentences)")
@@ -63,7 +106,6 @@ class Naacl2013Trainer[Tag](
     println(f"tsmooth: ${tsmooth}")
     println(f"esmooth: ${esmooth}")
     println(f"emTrainer: ${emTrainer}")
-    println(f"supervisedMemmTrainer: ${supervisedMemmTrainer}")
 
     val (transitions, emissions, generalizedTagdict) =
       if (baseline == "false") {
@@ -112,30 +154,9 @@ class Naacl2013Trainer[Tag](
 
     println("learn an HMM initialized with the estimated transition and emission distributions")
     val emHmm = emTrainer.trainWithSomeGold(rawSentences, labeledSentences, generalizedTagdict, transitions, emissions)
-    println("learn an MEMM from auto-tagged data produced by the smoothed HMM")
-    val memm = supervisedMemmTrainer.train(rawSentences.map(s => s zipSafe emHmm.tag(s)) ++ labeledSentences, generalizedTagdict)
 
-    println(f"Total NAACL Trainer training time: ${(System.currentTimeMillis() - startTime) / 1000} seconds\n\n")
-
-    memm
-  }
-
-}
-
-//
-//
-//
-
-/**
- * sbt start-script
- * target/start dhg.pos.run.Naacl2013Run --toksup none --typesup data/prepared/eng-exp/train/eng-tagdict-exp-4hr-lc8.txt --raw data/prepared/eng-exp/raw.txt --eval data/prepared/eng-exp/dev.txt --rawtok 100k
- * target/start dhg.pos.run.Naacl2013Run condor naacl2013 --rawtok 100k eng-exp dev --baseline false
- */
-object Naacl2013Run {
-
-  def main(args: Array[String]): Unit = {
-    val (arguments, options) = CommandLineUtil.parseArgs(args)
-
+    val autotaggedRawCorpus = rawSentences.map(s => s zipSafe emHmm.tag(s))
+    (autotaggedRawCorpus, generalizedTagdict)
   }
 
 }

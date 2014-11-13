@@ -77,7 +77,6 @@ For example:
     $ ./run --modelFile data/model.ser --evalFile data/eval.txt
 
 
-
 Note: You should set the `JAVA_OPTS` environment variable to increase the available memory:
 
     export JAVA_OPTS="-Xmx4g"
