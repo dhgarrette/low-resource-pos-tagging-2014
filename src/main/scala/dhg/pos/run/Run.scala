@@ -103,6 +103,7 @@ object Run {
 
     assert(options.contains("inputFile") == options.contains("outputFile"), "If `inputFile` is given, `outputFile` must be too.")
     for (inputFile <- options.get("inputFile")) {
+      println(f"Tagging data in ${options("inputFile")} and writing to ${options("outputFile")}")
       writeUsing(File(options("outputFile"))) { f =>
         for (sentence <- new FileRawDataReader().readRaw(inputFile)) {
           f.writeLine((for ((word, tag) <- sentence zipSafe tagger.tag(sentence)) yield f"$word|$tag").mkString(" "))
@@ -111,6 +112,7 @@ object Run {
     }
 
     for (evalFile <- options.get("evalFile")) {
+      println(f"Evaluating on ${options("evalFile")}")
       TaggerEvaluator.apply(tagger, new FileTaggedDataReader().readTagged(evalFile).toVector)
     }
 
