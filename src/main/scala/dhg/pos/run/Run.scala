@@ -49,6 +49,7 @@ object Run {
       autotaggedTrainer)
 
     val isTrain = options.contains("rawFile") || options.contains("autotaggedFile")
+    val isTag = options.contains("inputFile") || options.contains("evalFile")
     assert(options.contains("rawFile") == (options.contains("toksupFile") || options.contains("typesupFile")), "If `rawFile` is given, `toksupFile` or `typesupFile` (or both) must be given.")
     assert((options.contains("rawFile") && options.contains("autotaggedFile")) || options.contains("modelFile") || options.contains("inputFile") || options.contains("evalFile"), "Need to either train (`modelFile`) or tag (`inputFile` or `evalFile`)")
 
@@ -87,12 +88,15 @@ object Run {
             ??? // can't happen
           }
 
-        val model = autotaggedTrainer.trainFromAutoTagged(autotaggedCorpus, generalizedTagdict)
-        options.get("modelFile").foreach { modelFile =>
-          println(f"Writing tagger model to ${options("modelFile")}")
-          MemmTagger.persistToFile(model, modelFile)
+        if (isTag || options.contains("modelFile")) {
+          val model = autotaggedTrainer.trainFromAutoTagged(autotaggedCorpus, generalizedTagdict)
+          options.get("modelFile").foreach { modelFile =>
+            println(f"Writing tagger model to ${options("modelFile")}")
+            MemmTagger.persistToFile(model, modelFile)
+          }
+          model
         }
-        model
+        else null
       }
       else {
         assert(options.contains("modelFile"), "`modelFile` required if training data (`rawFile` or `autotaggedFile`) is not given.")
