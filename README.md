@@ -94,3 +94,55 @@ Annotated files (`toksupFile`, `typesupFile`, `evalFile`) should be whitespace-s
 
     the|D man|N sees|V the|D dog|N .|.
     the|D dog|N runs|V .|.
+
+
+
+
+
+## Universal Tagset Mappings for Malagasy and Kinyarwanda
+
+For those interested in using [Universal POS Tags](http://www.petrovi.de/data/lrec.pdf), please use this mapping, created by [Long Duong](https://sites.google.com/site/longduongunimelb/):
+
+#### Kinyarwanda
+
+| No | Kinyarwanda Tag | Universal Tag | Description |
+|---|---|-------|-----------------|
+| 1 | , | PUNCT | Comma character |
+| 2 | . | PUNCT | Dot character |
+| 3 | ADJ | ADJ | Adjective |
+| 4 | ADV | ADV | Adverb |
+| 5 | C | CONJ | Conjunction |
+| 6 | CC | CONJ | Conjunction |
+| 7 | DT | DET | Determiner |
+| 8 | N | NOUN | Noun |
+| 9 | PREP | ADP | Preposition |
+| 10 | V | VERB | Verb |
+| 11 | X | X | Foreign words |
+
+#### Malagasy
+
+| No | Malagasy Tag | Universal Tag | Description |
+|---|---|------|-----------------|
+| 1 | , | PUNC | Comma character |
+| 2 | : | PUNC | Semi column character |
+| 3 | . | PUNC | Dot character |
+| 4 | ... | PUNC | Ellipsis |
+| 5 | " | PUNC | Quotation character |
+| 6 | @-@ | PUNC | Dash character |
+| 7 | ADJ | ADJ | Adjective |
+| 8 | ADV | ADV | Adverb |
+| 9 | C | CONJ | Conjunction |
+| 10 | CONJ | CONJ | Conjunction |
+| 11 | DT | DET | Determiner |
+| 12 | FOC | DET | Focus Marker (similar to determiner) |
+| 13 | -LRB- | PUNC | Left Round Bracket |
+| 14 | N | NOUN | Noun |
+| 15 | NEG | ADV | Negation |
+| 16 | PCL | PRT | Particle |
+| 17 | PN | NOUN | Proper noun |
+| 18 | PREP | ADP | Preposition |
+| 19 | PRO | PRON | Pronoun |
+| 20 | -RRB- | PUNC | Right Round Bracket |
+| 21 | T | VERB | Passive verb |
+| 22 | V | VERB | Normal Verb |
+| 23 | X | X | Foreign root |
