@@ -4,7 +4,7 @@ name := "low-resource-pos-tagging-2014"
 
 version := "0.0.1"
 
-scalaVersion := "2.11.2"
+scalaVersion := "2.11.7"
 
 resolvers ++= Seq(
   "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",

@@ -40,6 +40,8 @@ The rest of these instructions assume starting from the `low-resource-pos-taggin
 
     $ ./compile
 
+NOTE: You will need to be connected to the internet the first time you run this since it will need to download several libraries that are required by the code.
+
 
 ## Running the system
 
